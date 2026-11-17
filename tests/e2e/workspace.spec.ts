@@ -210,3 +210,74 @@ test("opportunities paginate and reset the page when a rule filter changes", asy
   await expect(nav).toContainText("จาก 1 รายการ");
   await expect(nav.getByRole("button", {name: "ก่อนหน้า"})).toBeDisabled();
 });
+test("opportunity details show readable evidence and desktop/mobile actions keep working", async ({ page, context }) => {
+  await ownerSession(context);
+  await mockWorkspace(page);
+  const opportunity = {
+    id: "readable-opportunity", type: "TRAFFIC_DROP", query: "คีย์เวิร์ดตัวอย่าง", page: "https://example.test/product",
+    score: 80, confidence: 0.85, explanation: "จำนวนคลิกลดลง", nextAction: "ตรวจเนื้อหาหน้าเว็บ",
+    evidence: {clicks: 12, impressions: 1200, decline: 0.25, preferredUrl: null},
+    status: "OPEN", detectedAt: "2026-11-17T00:00:00Z",
+  };
+  let dismissed = false;
+  let task: Record<string, unknown> | undefined;
+  await page.route("**/api/opportunities?**", route => {
+    if (route.request().method() === "PATCH") return route.continue();
+    return route.fulfill({json: {rows: dismissed ? [] : [opportunity], total: dismissed ? 0 : 1, page: 1, pageSize: 10}});
+  });
+  await page.route("**/api/opportunities", route => {
+    expect(route.request().postDataJSON()).toMatchObject({id: opportunity.id, status: "DISMISSED"});
+    dismissed = true;
+    return route.fulfill({json: {ok: true}});
+  });
+  await page.route("**/api/tasks", route => {
+    task = route.request().postDataJSON();
+    return route.fulfill({status: 201, json: {id: "new-task"}});
+  });
+  await page.setViewportSize({width: 1280, height: 900});
+  await page.goto("/opportunities");
+  const table = page.getByRole("region", {name: "ตารางโอกาสปรับปรุง"});
+  await expect(table).toBeVisible();
+  await page.getByRole("button", {name: "ดูรายละเอียด คีย์เวิร์ดตัวอย่าง", exact: true}).click();
+  const dialog = page.getByRole("dialog", {name: opportunity.query});
+  await expect(dialog.getByRole("cell", {name: "1,200", exact: true})).toBeVisible();
+  await expect(dialog.getByRole("cell", {name: "25%", exact: true})).toBeVisible();
+  await expect(dialog.locator("details")).not.toHaveAttribute("open", "");
+  await dialog.getByText("ข้อมูลดิบ (JSON)", {exact: true}).click();
+  await expect(dialog.locator("pre")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await page.setViewportSize({width: 390, height: 844});
+  await expect(table).not.toBeVisible();
+  await expect(page.getByRole("heading", {name: opportunity.query, exact: true})).toBeVisible();
+  await page.getByRole("button", {name: "สร้างงาน คีย์เวิร์ดตัวอย่าง", exact: true}).click();
+  await expect(page.getByText("สร้างงานในศูนย์งาน SEO แล้ว", {exact: true})).toBeVisible();
+  expect(task).toMatchObject({opportunityId: opportunity.id, priority: "HIGH"});
+  await page.getByRole("button", {name: "ละเว้น คีย์เวิร์ดตัวอย่าง", exact: true}).click();
+  await expect(page.getByRole("heading", {name: "ไม่พบโอกาสปรับปรุงตามตัวกรองนี้"})).toBeVisible();
+});
+
+test("analytics headers and identity column stay pinned while the table scrolls", async ({ page, context }) => {
+  await ownerSession(context);
+  await mockWorkspace(page);
+  await page.route("**/api/keywords?**", route => route.fulfill({json: {
+    rows: Array.from({length: 25}, (_, i) => ({...row, label: `คีย์เวิร์ดตัวอย่างรายการที่ ${i + 1}`})),
+    total: 25, pageSize: 25,
+  }}));
+  await page.setViewportSize({width: 1100, height: 800});
+  await page.goto("/keywords");
+  const region = page.getByRole("region", {name: "ตารางคีย์เวิร์ด"});
+  await expect(region.getByRole("cell", {name: "คีย์เวิร์ดตัวอย่างรายการที่ 1", exact: true})).toBeVisible();
+  const header = region.locator("thead th").first();
+  const identity = region.locator("tbody tr").first().locator("td").first();
+  const beforeHeader = await header.boundingBox();
+  const beforeIdentity = await identity.boundingBox();
+  const scroll = await region.evaluate(el => {
+    el.scrollTop = 200; el.scrollLeft = 100;
+    return {top: el.scrollTop, left: el.scrollLeft};
+  });
+  expect(scroll.top).toBeGreaterThan(0);
+  expect(scroll.left).toBeGreaterThan(0);
+  expect((await header.boundingBox())!.y).toBeCloseTo(beforeHeader!.y, 0);
+  expect((await identity.boundingBox())!.x).toBeCloseTo(beforeIdentity!.x, 0);
+});

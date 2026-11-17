@@ -85,7 +85,7 @@ function AnalyticsContent({ dimension }: { dimension: "query" | "page" }) {
         accessorKey: "label",
         header: isPage ? "URL หน้าเว็บ" : "คีย์เวิร์ด",
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             {isPage && (
               <input
                 type="checkbox"
@@ -104,7 +104,7 @@ function AnalyticsContent({ dimension }: { dimension: "query" | "page" }) {
               />
             )}
             <button
-              className="link text-left max-w-80 truncate"
+              className="link min-w-0 text-left max-w-[min(40vw,16rem)] truncate"
               title={row.original.label}
               onClick={() => setDetail(row.original.label)}
             >
@@ -301,7 +301,7 @@ function AnalyticsContent({ dimension }: { dimension: "query" | "page" }) {
                   เทียบกับช่วงก่อนหน้าที่มีจำนวนวันเท่ากัน
                 </span>
               </div>
-              <div className="overflow-x-auto">
+              <div className="data-table-scroll" role="region" aria-label={isPage ? "ตารางหน้าเว็บ" : "ตารางคีย์เวิร์ด"} tabIndex={0}>
                 <table className="w-full">
                   <thead>
                     {table.getHeaderGroups().map((group) => (
@@ -342,7 +342,7 @@ function AnalyticsContent({ dimension }: { dimension: "query" | "page" }) {
                   </thead>
                   <tbody>
                     {table.getRowModel().rows.map((row) => (
-                      <tr key={row.id}>
+                      <tr key={row.id} data-selected={selected.includes(row.original.label) || undefined}>
                         {row.getVisibleCells().map((cell) => (
                           <td key={cell.id}>
                             {flexRender(

@@ -15,6 +15,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { EmptyProperty, ResourceState, number } from "./dashboard";
 import { Modal } from "./analytics-workspace";
+import { OpportunityResults, type Opportunity } from "./opportunity-results";
 export function useAction() {
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
@@ -36,19 +37,6 @@ export function useAction() {
   }
   return { busy, message, run };
 }
-type Opportunity = {
-  id: string;
-  type: string;
-  query: string | null;
-  page: string | null;
-  score: number;
-  confidence: number;
-  explanation: string;
-  nextAction: string;
-  evidence: Record<string, unknown>;
-  status: string;
-  detectedAt: string;
-};
 export function Opportunities() {
   const w = useWorkspace();
   return <OpportunityList key={w.siteId + w.start + w.end} />;
@@ -144,95 +132,33 @@ function OpportunityList() {
           <ResourceState loading={r.loading || w.loading} error={r.error} />
           {!r.loading && !w.loading && !r.error && (
             <div className="space-y-4">
-              {rows.map((o) => (
-                <Card key={o.id} className="p-6">
-                  <div className="flex items-start gap-5">
-                    <div className="size-14 shrink-0 rounded-xl bg-muted text-primary grid place-content-center text-center">
-                      <strong className="text-xl tabular">{o.score}</strong>
-                      <span className="text-[9px]">/ 100</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="pill">
-                          {thaiLabel(o.type)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {number(o.confidence * 100)}% ความเชื่อมั่นของข้อมูล
-                        </span>
-                        <span className="pill ml-auto">{thaiLabel(o.status)}</span>
-                      </div>
-                      <h2 className="mt-4 break-all">
-                        {o.query || o.page || "โอกาสปรับปรุงเว็บไซต์"}
-                      </h2>
-                      {o.query && o.page && (
-                        <p className="text-xs text-muted-foreground break-all mt-2">
-                          {o.page}
-                        </p>
-                      )}
-                      <p className="text-sm leading-6 mt-4">{findingText(o.explanation)}</p>
-                      <p className="text-xs text-muted-foreground leading-6 mt-2">
-                        <strong>ขั้นตอนถัดไป:</strong> {findingText(o.nextAction)}
-                      </p>
-                      <details className="mt-3 text-xs text-muted-foreground">
-                        <summary className="cursor-pointer">
-                          ดูข้อมูลประกอบ
-                        </summary>
-                        <pre>{JSON.stringify(Object.fromEntries(Object.entries(o.evidence).map(([key, value]) => [thaiLabel(key), value])), null, 2)}</pre>
-                      </details>
-                      <div className="flex gap-2 mt-4">
-                        <Button
-                          size="sm"
-                          disabled={action.busy}
-                          onClick={() =>
-                            action.run(
-                              () =>
-                                api("tasks", {
-                                  siteId: w.siteId,
-                                  opportunityId: o.id,
-                                  title:
-                                    thaiLabel(o.type) +
-                                    ": " +
-                                    (o.query || o.page || "ตรวจทาน"),
-                                  description: findingText(o.nextAction),
-                                  page: o.page,
-                                  query: o.query,
-                                  priority: o.score >= 70 ? "HIGH" : "MEDIUM",
-                                }),
-                              "สร้างงานในศูนย์งาน SEO แล้ว",
-                            )
-                          }
-                        >
-                          <Plus size={14} />
-                          สร้างงาน
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={action.busy}
-                          onClick={() =>
-                            action.run(() =>
-                              api(
-                                "opportunities",
-                                {
-                                  siteId: w.siteId,
-                                  id: o.id,
-                                  status:
-                                    o.status === "DISMISSED"
-                                      ? "OPEN"
-                                      : "DISMISSED",
-                                },
-                                "PATCH",
-                              ),
-                            )
-                          }
-                        >
-                          {o.status === "DISMISSED" ? "เรียกคืน" : "ละเว้น"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+              {rows.length > 0 && (
+                <OpportunityResults
+                  rows={rows}
+                  busy={action.busy}
+                  onCreate={(o) => {
+                    void action.run(
+                      () => api("tasks", {
+                        siteId: w.siteId,
+                        opportunityId: o.id,
+                        title: thaiLabel(o.type) + ": " + (o.query || o.page || "ตรวจทาน"),
+                        description: findingText(o.nextAction),
+                        page: o.page,
+                        query: o.query,
+                        priority: o.score >= 70 ? "HIGH" : "MEDIUM",
+                      }),
+                      "สร้างงานในศูนย์งาน SEO แล้ว",
+                    );
+                  }}
+                  onDismiss={(o) => {
+                    void action.run(() => api("opportunities", {
+                      siteId: w.siteId,
+                      id: o.id,
+                      status: o.status === "DISMISSED" ? "OPEN" : "DISMISSED",
+                    }, "PATCH"));
+                  }}
+                />
+              )}
               {total > 0 && (
                 <nav aria-label="การแบ่งหน้าโอกาสปรับปรุง" className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 text-xs text-muted-foreground">
                   <p role="status">

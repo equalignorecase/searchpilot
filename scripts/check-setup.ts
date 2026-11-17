@@ -36,15 +36,15 @@ try {
   await database.$queryRaw`SELECT 1`;
   const rows = await database.$queryRaw<
     { count: number }[]
-  >`SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('GoogleCredential','Site','SearchMetric','SyncJob','Opportunity','SeoTask','PageTarget','SeoChange','UrlInspection')`;
-  if (rows[0]?.count !== 9) {
+  >`SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('GoogleCredential','Site','SearchMetric','SyncJob','Opportunity','SeoTask','PageTarget','SeoChange','UrlInspection','RecentSearchSnapshot')`;
+  if (rows[0]?.count !== 10) {
     console.error(
       "Database is reachable, but application tables are missing. Run npm run db:migrate on the intended development branch.",
     );
     process.exitCode = 1;
   } else
     console.log(
-      "Neon database is reachable and all nine business tables exist.",
+      "Neon database is reachable and all ten business tables exist.",
     );
   const response = await fetch(authUrl.replace(/\/$/, "") + "/get-session", {
     headers: { Origin: origin },

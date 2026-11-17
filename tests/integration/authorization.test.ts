@@ -101,10 +101,10 @@ describe("server authorization and validation", () => {
   });
   it("rejects a site outside the owner scope", async () => {
     mocked.findFirst.mockResolvedValue(null);
-    for (const route of ["tasks", "opportunities"]) {
+    for (const route of ["tasks", "opportunities", "analytics/recent"]) {
       const r = await call(
         new Request("https://search.test/api/" + route + "?siteId=foreign"),
-        [route],
+        route.split("/"),
       );
       expect(r.status).toBe(404);
     }

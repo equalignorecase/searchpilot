@@ -57,6 +57,7 @@ model Site {
   lastSyncAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  recentSnapshots RecentSearchSnapshot[]
   metrics SearchMetric[]
   jobs SyncJob[]
   opportunities Opportunity[]
@@ -210,5 +211,20 @@ model RateLimit {
   count Int
   expiresAt DateTime
   @@index([expiresAt])
+  @@schema("public")
+}
+
+model RecentSearchSnapshot {
+  id String @id @default(cuid())
+  siteId String
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  day DateTime @db.Date
+  data Json?
+  fetchedAt DateTime?
+  leaseToken String?
+  leaseUntil DateTime?
+  retryAt DateTime?
+  errorMessage String?
+  @@unique([siteId, day])
   @@schema("public")
 }

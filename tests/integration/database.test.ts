@@ -68,6 +68,7 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await pg.exec(await readFile("prisma/migrations/20261117000000_recent_search/migration.sql", "utf8"));
   await pg.query(
     `INSERT INTO public."Site" (id,"ownerId","siteUrl","displayName",permission,"propertyType","updatedAt") VALUES ('site','owner','sc-domain:x.test','x.test','siteOwner','DOMAIN',NOW())`,
   );
@@ -261,4 +262,14 @@ it("persists opportunity rules idempotently and preserves dismissals through rea
       )
     ).rows,
   ).toEqual([{ status: "RESOLVED" }]);
+});
+
+it("isolates recent hourly snapshots from daily metrics and enforces one snapshot per site/day", async () => {
+  const payload = { hours: [{ date: "2026-11-17T08:00:00Z", clicks: 2 }], firstIncompleteHour: null };
+  await pg.query(`INSERT INTO public."RecentSearchSnapshot" (id,"siteId",day,data) VALUES ('recent','site','2026-11-17',$1)`, [JSON.stringify(payload)]);
+  const result = await pg.query<{data: unknown}>(`SELECT data FROM public."RecentSearchSnapshot" WHERE id='recent'`);
+  expect(result.rows[0].data).toEqual(payload);
+  await expect(pg.query(`INSERT INTO public."RecentSearchSnapshot" (id,"siteId",day) VALUES ('duplicate','site','2026-11-17')`)).rejects.toThrow();
+  await expect(pg.query(`INSERT INTO public."RecentSearchSnapshot" (id,"siteId",day) VALUES ('foreign','missing','2026-11-17')`)).rejects.toThrow();
+  expect((await pg.query(`SELECT * FROM public."SearchMetric" WHERE date='2026-11-17'`)).rows).toHaveLength(0);
 });

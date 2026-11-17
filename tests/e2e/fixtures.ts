@@ -94,6 +94,11 @@ export async function mockWorkspace(page: Page) {
           },
         ],
       });
+    if (path === "/api/analytics/recent") {
+      const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const date = day + "T12:00:00Z";
+      return route.fulfill({ json: { day, hours: [{ date, clicks: 5, impressions: 100, ctr: 0.05, position: 4 }], metrics: { clicks: 5, impressions: 100, ctr: 0.05, position: 4 }, available: true, hasData: true, fetchedAt: new Date().toISOString(), latestHour: date, firstIncompleteHour: date, stale: false, refreshing: false, warning: null, nextRefreshAt: new Date(Date.now() + 900000).toISOString() } });
+    }
     if (path === "/api/analytics")
       return route.fulfill({
         json: {

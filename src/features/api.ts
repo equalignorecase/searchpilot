@@ -30,6 +30,7 @@ import {
   opportunityListInput,
   listOpportunities,
 } from "@/features/opportunities/service";
+import { recentSearch } from "@/features/analytics/recent";
 import { defaultThresholds } from "@/lib/seo/analyzer";
 
 export async function handleApi(request: Request, path: string[]) {
@@ -64,6 +65,11 @@ export async function handleApi(request: Request, path: string[]) {
       ownerUsername: process.env.APP_USERNAME,
       defaultThresholds,
     });
+  }
+  if (method === "GET" && route === "analytics/recent") {
+    const siteId = id.parse(u.searchParams.get("siteId"));
+    const site = await requireSite(owner.id, siteId);
+    return json(await recentSearch(site));
   }
   if (method === "GET") {
     if (route === "opportunities") {

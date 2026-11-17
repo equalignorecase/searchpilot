@@ -162,21 +162,20 @@ test("empty property state never fabricates analytics", async ({
     page.getByText("จำนวนคลิกทั้งหมด", { exact: true }),
   ).not.toBeVisible();
 });
-test("today preset requests a single Pacific reporting day and disables finalized-only sync", async ({ page, context }) => {
+test("today preset requests recent hourly data separately from finalized reports", async ({ page, context }) => {
   await ownerSession(context);
   await mockWorkspace(page);
   await page.goto("/dashboard");
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(new Date());
   const request = page.waitForRequest((r) => {
     const url = new URL(r.url());
-    return url.pathname === "/api/analytics" && url.searchParams.get("start") === today && url.searchParams.get("end") === today;
+    return url.pathname === "/api/analytics/recent" && url.searchParams.has("siteId");
   });
   await page.getByLabel("ช่วงวันที่", { exact: true }).selectOption("today");
   await request;
-  await expect(page.getByText("วันนี้อ้างอิงเวลาแปซิฟิกของ Search Console", { exact: false })).toBeVisible();
-  await expect(page.getByRole("button", { name: "ซิงก์ข้อมูล", exact: true })).toBeDisabled();
+  await expect(page.getByRole("heading", { name: "ข้อมูลล่าสุดวันนี้" })).toBeVisible();
+  await expect(page.getByText("ข้อมูลเบื้องต้น ยังไม่สรุป", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "ประสิทธิภาพรายชั่วโมง" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ซิงก์ข้อมูล", exact: true })).not.toBeVisible();
   await page.getByLabel("ช่วงวันที่", { exact: true }).selectOption("7");
   await expect(page.getByRole("button", { name: "ซิงก์ข้อมูล", exact: true })).toBeEnabled();
 });

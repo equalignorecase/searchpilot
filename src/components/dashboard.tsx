@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { RecentDashboard } from "./recent-dashboard";
 import { formatDate, todayRange } from "@/lib/locale";
 import { useState } from "react";
 import {
@@ -60,8 +61,16 @@ export function ResourceState({
   return null;
 }
 export function Dashboard() {
+  const w = useWorkspace();
+  if (w.start === w.end && w.end === todayRange().end) {
+    if (w.loading) return <LoadingSkeleton variant="dashboard" />;
+    if (!w.siteId) return <EmptyProperty />;
+    return <RecentDashboard key={w.siteId} siteId={w.siteId} />;
+  }
+  return <HistoricalDashboard />;
+}
+function HistoricalDashboard() {
   const w = useWorkspace(),
-    isToday = w.start === w.end && w.end === todayRange().end,
     [metric, setMetric] = useState<
       "clicks" | "impressions" | "ctr" | "position"
     >("clicks"),
@@ -144,16 +153,11 @@ export function Dashboard() {
           <h1>ภาพรวม</h1>
           <p>ดูผลการค้นหาแบบออร์แกนิกและวางแผนสิ่งที่ควรปรับปรุงต่อไป</p>
         </div>
-        <Button variant="outline" disabled={!w.siteId || busy || isToday} onClick={sync}>
+        <Button variant="outline" disabled={!w.siteId || busy} onClick={sync}>
           <RefreshCw size={15} className={busy ? "animate-spin" : ""} />
           {busy ? "กำลังเพิ่มในคิว…" : "ซิงก์ข้อมูล"}
         </Button>
       </div>
-      {isToday && (
-        <p className="notice mb-5" role="status">
-          วันนี้อ้างอิงเวลาแปซิฟิกของ Search Console ระบบนี้ซิงก์เฉพาะข้อมูลที่สรุปแล้ว โดยเว้นอย่างน้อย 3 วัน ข้อมูลวันนี้จึงยังไม่พร้อม และไม่ได้หมายความว่าไม่มีผู้เข้าชม
-        </p>
-      )}
       {message && (
         <p role="status" className="notice mb-5">
           {message}
@@ -258,13 +262,13 @@ export function Dashboard() {
                 ) : (
                   <div className="empty min-h-72">
                     <ChartNoAxesCombined size={36} />
-                    <h2>{isToday ? "ข้อมูลวันนี้ยังไม่พร้อม" : "เริ่มดูประวัติการค้นหาของคุณที่นี่"}</h2>
+                    <h2>เริ่มดูประวัติการค้นหาของคุณที่นี่</h2>
                     <p className="text-sm text-muted-foreground">
-                      {isToday ? "เลือกช่วง 7, 28 หรือ 90 วันล่าสุดเพื่อดูข้อมูลที่ซิงก์แล้ว" : "เพิ่มงานซิงก์สำหรับช่วงเวลานี้ ผลการค้นหาจริงจะแสดงเมื่อซิงก์เสร็จ"}
+                      เพิ่มงานซิงก์สำหรับช่วงเวลานี้ ผลการค้นหาจริงจะแสดงเมื่อซิงก์เสร็จ
                     </p>
                     <Button
                       onClick={sync}
-                      disabled={busy || isToday}
+                      disabled={busy}
                       variant="outline"
                       size="sm"
                       className="mt-3"

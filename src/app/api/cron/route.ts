@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { scheduleDaily, workOne } from "@/features/sync/service";
+import { cleanExpiredRateLimits } from "@/lib/security/rate-limit";
 import { errorResponse, json } from "@/lib/security/http";
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export async function GET(request: Request) {
   )
     return json({ error: "Unauthorized" }, 401);
   try {
+    await cleanExpiredRateLimits();
     return json({ scheduled: await scheduleDaily(), worked: await workOne() });
   } catch (error) {
     return errorResponse(error);

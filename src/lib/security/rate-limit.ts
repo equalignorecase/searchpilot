@@ -10,3 +10,6 @@ export async function rateLimit(key: string, limit: number, seconds: number) {
   if (rows[0].count > limit)
     throw new HttpError(429, "ส่งคำขอมากเกินไป กรุณาลองอีกครั้งภายหลัง");
 }
+export async function cleanExpiredRateLimits() {
+  await db().$queryRaw`DELETE FROM public."RateLimit" WHERE "expiresAt" < NOW()`;
+}
